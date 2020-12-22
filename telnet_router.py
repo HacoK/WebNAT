@@ -1,5 +1,7 @@
 import telnetlib
 import time
+from NetMaskHelper import exchange_maskint
+
 class TelnetClient:
     def __init__(self):
         self.tn = telnetlib.Telnet()
@@ -9,7 +11,13 @@ class TelnetClient:
 
     def get_output(self, sleep_seconds=2):
         time.sleep(sleep_seconds)
-        return self.tn.read_very_eager().decode('ascii')
+        tmp = self.tn.read_very_eager().decode('ascii')
+        if '--More--' in tmp.split('\r\n')[-1]:
+            self.tn.write(b' ')
+            time.sleep(sleep_seconds)
+            tmp += self.tn.read_very_eager().decode('ascii')
+        return tmp
+
 
     def login(self, host_ip, username, password):
         try:
@@ -47,8 +55,7 @@ class TelnetClient:
         self.exec_cmd('disable')
 
     def get_hostname(self):
-        self.input('\n')
-        return self.get_output().strip()[:-1]
+        return self.exec_cmd("").split('\r\n')[-1].strip()[:-1]
 
     def set_hostname(self, hostname):
         self.exec_cmd('configure terminal')
@@ -71,9 +78,26 @@ class TelnetClient:
         info = {}
         info['abbr'] = abbr
         info['name'] = abbr
-        info['name'] = abbr.replace("f", "FastEthernet")
-        info['name'] = abbr.replace("s", "Serial")
+        info['name'] = info['name'].replace("f", "FastEthernet")
+        info['name'] = info['name'].replace("s", "Serial")
         '''根据show ip interface abbr输出补充ip_address以及is_open'''
+        output = self.exec_cmd('show ip interface ' + abbr)
+        info['is_open'] = True
+        info['ip_address'] = {'primary':{}, 'secondary':[]}
+        for str in output.split('\r\n'):
+            if 'down' in str:
+                info['is_open'] = False
+                return info
+            if 'Internet address is' in str:
+                str = str.split(' ')[-1]
+                mask_bit = int(str.split('/')[1])
+                netmask = exchange_maskint(mask_bit)
+                info['ip_address']['primary']={ 'ip': str.split('/')[0], 'netmask': netmask, 'mask_bit': mask_bit }
+            if 'Secondary address' in str:
+                str = str.split(' ')[-1]
+                mask_bit = int(str.split('/')[1])
+                netmask = exchange_maskint(mask_bit)
+                info['ip_address']['secondary'].append({ 'ip': str.split('/')[0], 'netmask': netmask, 'mask_bit': mask_bit })
         return info
 
 # if __name__ == '__main__':
