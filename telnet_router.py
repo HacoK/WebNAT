@@ -115,44 +115,50 @@ class TelnetClient:
 
     def set_static_route(self):
         '''为R1加上去往R3的静态路由'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('ip route 200.1.1.0 255.255.255.0 s0/0/0')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('ip route 200.1.1.0 255.255.255.0 s0/0/0')
         result += self.exec_cmd('end')
         return result
 
     def set_static_nat(self):
         '''在R2上完成静态NAT的配置'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('ip nat inside source static 192.168.1.1 200.1.1.254')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('ip nat inside source static 192.168.1.1 200.1.1.254')
         result += self.exec_cmd('end')
         return result
         
     def delete_static_nat(self):
         '''在R2上删除静态NAT的配置'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('no ip nat inside source static 192.168.1.1 200.1.1.254')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('no ip nat inside source static 192.168.1.1 200.1.1.254')
         result += self.exec_cmd('end')
         return result
 
     def set_access_list(self):
         '''在R2上通过使用用户访问控制列表来定义本地地址池'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('access-list 1 permit 192.168.1.0 0.0.0.255')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('access-list 1 permit 192.168.1.0 0.0.0.255')
         result += self.exec_cmd('end')
         return result
 
     def set_dynamic_nat(self):
         '''在R2上完成动态NAT的配置'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.254 p 24')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.254 p 24')
         result += self.exec_cmd('ip nat inside source list 1 pool nju')
         result += self.exec_cmd('end')
         return result
 
     def delete_dynamic_nat(self):
         '''在R2上删除动态NAT的配置'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('no ip nat inside source list 1 pool nju')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('no ip nat inside source list 1 pool nju')
         if '[no]' in result:
             result += self.exec_cmd('y')
         result += self.exec_cmd('no ip nat pool nju 200.1.1.253 200.1.1.254 p 24')
@@ -161,16 +167,18 @@ class TelnetClient:
 
     def set_PAT(self):
         '''在R2上完成PAT的配置'''
-        self.exec_cmd('configure terminal')
-        result = self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.253 p 24')
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('configure terminal')
+        result += self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.253 p 24')
         result += self.exec_cmd('ip nat inside source list 1 pool nju overload')
         result += self.exec_cmd('end')
         return result
 
     def ping(self,target,source):
+        result = self.exec_cmd('').strip()
         if source:
             '''执行Ping命令'''
-            result = self.exec_cmd('ping')
+            result += self.exec_cmd('ping')
             '''Protocol [ip]'''
             result += self.exec_cmd('')
             '''Target IP address'''
@@ -197,9 +205,11 @@ class TelnetClient:
             result += self.exec_cmd('')
             '''Sweep range of sizes [n]'''
             result += self.exec_cmd('')
-            return result
         else:
-            return self.exec_cmd('ping '+target)
+            result += self.exec_cmd('ping '+target)
+        if '!!!' not in result:
+            result += self.get_output(sleep_seconds=10)
+        return result
 
 # if __name__ == '__main__':
 #     tc = TelnetClient()
