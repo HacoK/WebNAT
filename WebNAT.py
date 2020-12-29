@@ -28,6 +28,7 @@ interface = api.model('Interface', {
     'name': fields.String(description='Name of the interface'),
     'abbr': fields.String(description='Abbreviation of the interface'),
     'ip_address': fields.Nested(ip_address_combined),
+    'ip_nat': fields.String(description='null | inside | outside '),
     'is_open': fields.Boolean
 })
 
@@ -46,8 +47,8 @@ class TelnetConnect(Resource):
         '''创建一个新的路由器连接'''
         router_id = int(request.args.get("router_id"))
         tc = TelnetClient()
-        tc.login(router_ips[router_id-1], 'root', 'cisco')
-        tc.switch_root('cisco')
+        tc.login(router_ips[router_id-1], 'root', '123456')
+        tc.switch_root('123456')
         return DAO.add(tc)
 
 @ns.route('/exit')
@@ -104,7 +105,91 @@ class InterfaceInfo(Resource):
         '''设置接口信息'''
         connection_id = int(request.args.get("connection_id"))
         return DAO.get(connection_id).set_interface(api.payload)
+
+@ns.route('/nat_translations')
+@ns.param('connection_id', 'The connection identifier')
+class NATTable(Resource):
+    @ns.doc('GetNATTable')
+    def get(self):
+        '''查看NAT转换表'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).get_NAT_table()
     
+    @ns.doc('ClearNATTable')
+    def delete(self):
+        '''清除NAT转换表'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).clear_NAT_table()
+
+@ns.route('/static_route')
+@ns.param('connection_id', 'The connection identifier')
+class StaticRoute(Resource):
+    @ns.doc('SetStaticRoute')
+    def post(self):
+        '''设置静态路由'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).set_static_route()
+
+@ns.route('/static_nat')
+@ns.param('connection_id', 'The connection identifier')
+class StaticNAT(Resource):
+    @ns.doc('SetStaticNAT')
+    def post(self):
+        '''配置静态NAT'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).set_static_nat()
+
+    @ns.doc('DeleteStaticNAT')
+    def delete(self):
+        '''删除静态NAT'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).delete_static_nat()
+
+@ns.route('/access_list')
+@ns.param('connection_id', 'The connection identifier')
+class AccessList(Resource):
+    @ns.doc('SetAccessList')
+    def post(self):
+        '''配置用户访问控制列表'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).set_access_list()
+
+@ns.route('/dynamic_nat')
+@ns.param('connection_id', 'The connection identifier')
+class DynamicNAT(Resource):
+    @ns.doc('SetDynamicNAT')
+    def post(self):
+        '''配置动态NAT'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).set_dynamic_nat()
+
+    @ns.doc('DeleteDynamicNAT')
+    def delete(self):
+        '''删除动态NAT'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).delete_dynamic_nat()
+
+@ns.route('/pat')
+@ns.param('connection_id', 'The connection identifier')
+class PAT(Resource):
+    @ns.doc('SetAccessList')
+    def post(self):
+        '''配置PAT'''
+        connection_id = int(request.args.get("connection_id"))
+        return DAO.get(connection_id).set_PAT()
+
+@ns.route('/ping')
+@ns.param('connection_id', 'The connection identifier')
+@ns.param('target', 'The target destination')
+@ns.param('source', 'The source ip address(may be none)')
+class Ping(Resource):
+    @ns.doc('SetAccessList')
+    def get(self):
+        '''执行Ping命令'''
+        connection_id = int(request.args.get("connection_id"))
+        target = request.args.get("target")
+        source = request.args.get("source")
+        return DAO.get(connection_id).ping(target,source)
 
 if __name__ == '__main__':
     app.run(debug=True)

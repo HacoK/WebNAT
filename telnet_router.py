@@ -68,10 +68,11 @@ class TelnetClient:
         self.exec_cmd('interface ' + information['abbr'])
         result = self.exec_cmd('ip address ' + information['ip_address']['primary']['ip'] + ' ' + information['ip_address']['primary']['netmask'])
         for secondary_ip in information['ip_address']['secondary']:
-            result += self.exec_cmd('ip address ' + secondary_ip['ip'] + ' ' + secondary_ip['netmask'] + 'secondary')
+            result += self.exec_cmd('ip address ' + secondary_ip['ip'] + ' ' + secondary_ip['netmask'] + ' secondary')
         result += self.exec_cmd('no shutdown')
-        self.exec_cmd('exit')
-        self.exec_cmd('exit')
+        if information['ip_nat']:
+            result += self.exec_cmd('ip nat '+information['ip_nat'])
+        self.exec_cmd('end')
         return result
     
     def get_interface_info(self, abbr):
@@ -83,11 +84,16 @@ class TelnetClient:
         '''根据show ip interface abbr输出补充ip_address以及is_open'''
         output = self.exec_cmd('show ip interface ' + abbr)
         info['is_open'] = True
+        info['ip_nat'] = None
         info['ip_address'] = {'primary':{}, 'secondary':[]}
         for str in output.split('\r\n'):
             if 'down' in str:
                 info['is_open'] = False
                 return info
+            if 'NAT Outside' in str:
+                info['ip_nat'] = 'outside'
+            if 'NAT Inside' in str:
+                info['ip_nat'] = 'inside'
             if 'Internet address is' in str:
                 str = str.split(' ')[-1]
                 mask_bit = int(str.split('/')[1])
@@ -99,6 +105,101 @@ class TelnetClient:
                 netmask = exchange_maskint(mask_bit)
                 info['ip_address']['secondary'].append({ 'ip': str.split('/')[0], 'netmask': netmask, 'mask_bit': mask_bit })
         return info
+
+    def get_NAT_table(self):
+        return self.exec_cmd("show ip nat translations")
+
+    def clear_NAT_table(self):
+        self.exec_cmd('clear ip nat translation *')
+        return "NAT table clear!"
+
+    def set_static_route(self):
+        '''为R1加上去往R3的静态路由'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('ip route 200.1.1.0 255.255.255.0 s0/0/0')
+        result += self.exec_cmd('end')
+        return result
+
+    def set_static_nat(self):
+        '''在R2上完成静态NAT的配置'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('ip nat inside source static 192.168.1.1 200.1.1.254')
+        result += self.exec_cmd('end')
+        return result
+        
+    def delete_static_nat(self):
+        '''在R2上删除静态NAT的配置'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('no ip nat inside source static 192.168.1.1 200.1.1.254')
+        result += self.exec_cmd('end')
+        return result
+
+    def set_access_list(self):
+        '''在R2上通过使用用户访问控制列表来定义本地地址池'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('access-list 1 permit 192.168.1.0 0.0.0.255')
+        result += self.exec_cmd('end')
+        return result
+
+    def set_dynamic_nat(self):
+        '''在R2上完成动态NAT的配置'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.254 p 24')
+        result += self.exec_cmd('ip nat inside source list 1 pool nju')
+        result += self.exec_cmd('end')
+        return result
+
+    def delete_dynamic_nat(self):
+        '''在R2上删除动态NAT的配置'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('no ip nat inside source list 1 pool nju')
+        if '[no]' in result:
+            result += self.exec_cmd('y')
+        result += self.exec_cmd('no ip nat pool nju 200.1.1.253 200.1.1.254 p 24')
+        result += self.exec_cmd('end')
+        return result
+
+    def set_PAT(self):
+        '''在R2上完成PAT的配置'''
+        self.exec_cmd('configure terminal')
+        result = self.exec_cmd('ip nat pool nju 200.1.1.253 200.1.1.253 p 24')
+        result += self.exec_cmd('ip nat inside source list 1 pool nju overload')
+        result += self.exec_cmd('end')
+        return result
+
+    def ping(self,target,source):
+        if source:
+            '''执行Ping命令'''
+            result = self.exec_cmd('ping')
+            '''Protocol [ip]'''
+            result += self.exec_cmd('')
+            '''Target IP address'''
+            result += self.exec_cmd(target)
+            '''Repeat count [5]'''
+            result += self.exec_cmd('')
+            '''Datagram size [100]'''
+            result += self.exec_cmd('')
+            '''Timeout in seconds [2]'''
+            result += self.exec_cmd('')
+            '''Extended commands [n]'''
+            result += self.exec_cmd('y')
+            '''Source address or interface:'''
+            result += self.exec_cmd(source)
+            '''Type of service [0]'''
+            result += self.exec_cmd('')
+            '''Set DF bit in IP header? [no]'''
+            result += self.exec_cmd('')
+            '''Validate reply data? [no]'''
+            result += self.exec_cmd('')
+            '''Data pattern [0xABCD]'''
+            result += self.exec_cmd('')
+            '''Loose, Strict, Record, Timestamp, Verbose[none]'''
+            result += self.exec_cmd('')
+            '''Sweep range of sizes [n]'''
+            result += self.exec_cmd('')
+            return result
+        else:
+            return self.exec_cmd('ping '+target)
 
 # if __name__ == '__main__':
 #     tc = TelnetClient()

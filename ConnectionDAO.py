@@ -17,3 +17,4 @@ class ConnectionDAO(object):
     def delete(self, connection_id):
         self.conections[connection_id].logout()
         del self.conections[connection_id]
+        return "Conection deleted successfully!"
