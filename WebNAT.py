@@ -1,5 +1,5 @@
 from telnet_router import TelnetClient
-from flask import Flask, request
+from flask import Flask, request, make_response
 from flask_restplus import Api, Resource, fields
 from urllib import parse
 from ConnectionDAO import ConnectionDAO
@@ -113,7 +113,12 @@ class NATTable(Resource):
     def get(self):
         '''查看NAT转换表'''
         connection_id = int(request.args.get("connection_id"))
-        return DAO.get(connection_id).get_NAT_table()
+        retVal = {}
+        result = DAO.get(connection_id).get_NAT_table()
+        retVal['result'] = result
+        pingSrc = request.cookies.get("pingSrc")
+        retVal['status'] = pingSrc in result
+        return retVal
     
     @ns.doc('ClearNATTable')
     def delete(self):
@@ -189,7 +194,13 @@ class Ping(Resource):
         connection_id = int(request.args.get("connection_id"))
         target = request.args.get("target")
         source = request.args.get("source")
-        return DAO.get(connection_id).ping(target,source)
+        result = DAO.get(connection_id).ping(target,source)
+        retVal = {}
+        retVal['result'] = result
+        retVal['status'] = '!!!' in result
+        response = make_response(retVal)
+        response.set_cookie("pingSrc", source)
+        return response
 
 if __name__ == '__main__':
     app.run(debug=True)
