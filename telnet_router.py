@@ -107,11 +107,14 @@ class TelnetClient:
         return info
 
     def get_NAT_table(self):
-        return self.exec_cmd("show ip nat translations")
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd("show ip nat translations")
+        return result
 
     def clear_NAT_table(self):
-        self.exec_cmd('clear ip nat translation *')
-        return "NAT table clear!"
+        result = self.exec_cmd('').strip()
+        result += self.exec_cmd('clear ip nat translation *')
+        return result
 
     def set_static_route(self):
         '''为R1加上去往R3的静态路由'''

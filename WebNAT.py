@@ -199,7 +199,10 @@ class Ping(Resource):
         retVal['result'] = result
         retVal['status'] = '!!!' in result
         response = make_response(retVal)
-        response.set_cookie("pingSrc", source)
+        if source:
+            response.set_cookie("pingSrc", source)
+        else:
+            response.set_cookie("pingSrc", "192.168.1.1")
         return response
 
 if __name__ == '__main__':
